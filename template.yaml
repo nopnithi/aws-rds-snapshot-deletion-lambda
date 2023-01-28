@@ -1,0 +1,51 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+Parameters:
+  FunctionLogRetentionInDays:
+    Type: Number
+    Default: 30
+  FunctionScheduleExpression:
+    Type: String
+    Default: cron(0 17 * * ? *)  # 00:00 (UTC+7)
+  SnapshotNameContains:
+    Type: String
+    Default: "jenkins,instance-scheduler"
+  SnapshotAgeThreshold:
+    Type: Number
+    Default: 30
+
+Resources:
+  RDSSnapshotDeletionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambda/deployment.zip
+      Handler: lambda_function.lambda_handler
+      Runtime: python3.9
+      Architectures:
+        - x86_64
+      Timeout: 600
+      Environment:
+        Variables:
+          SNAPSHOT_NAME_CONTAINS: !Ref SnapshotNameContains
+          SNAPSHOT_AGE_THRESHOLD: !Ref SnapshotAgeThreshold
+      Events:
+        ScheduleEvent:
+          Type: Schedule
+          Properties:
+            Schedule: !Ref FunctionScheduleExpression
+      Policies:
+        - Statement:
+            - Sid: GetAndDeleteDBSnapshots
+              Effect: Allow
+              Action:
+                - rds:DescribeDBSnapshots
+                - rds:DeleteDBSnapshot
+              Resource:
+               - "*"
+  RDSSnapshotDeletionLogGroup:
+    Type: AWS::Logs::LogGroup
+    DependsOn: RDSSnapshotDeletionFunction
+    Properties: 
+      RetentionInDays: !Ref FunctionLogRetentionInDays
+      LogGroupName: !Join ['', ['/aws/lambda/', !Ref RDSSnapshotDeletionFunction]]

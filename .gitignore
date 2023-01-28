@@ -1,0 +1,15 @@
+# Python files
+*.pyc
+*.egg-info
+dist
+build
+*.egg
+
+# OSX files
+.DS_Store
+
+# Lambda package
+lambda/package
+
+# Lambda deployment zip
+lambda/*.zip
